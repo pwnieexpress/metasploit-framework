@@ -1,0 +1,89 @@
+# -*- coding: binary -*-
+# $Id$
+#
+# All exploit mixins should be added to the list below
+#
+
+# Behavior
+require 'msf/core/exploit/brute'
+require 'msf/core/exploit/brutetargets'
+require 'msf/core/exploit/browser_autopwn'
+
+# Payload
+require 'msf/core/exploit/egghunter'
+require 'msf/core/exploit/omelet'
+require 'msf/core/exploit/seh'
+require 'msf/core/exploit/kernel_mode'
+require 'msf/core/exploit/exe'
+
+# CmdStagers
+require 'msf/core/exploit/cmdstager'
+require 'msf/core/exploit/cmdstager_vbs'
+require 'msf/core/exploit/cmdstager_vbs_adodb'
+require 'msf/core/exploit/cmdstager_debug_write'
+require 'msf/core/exploit/cmdstager_debug_asm'
+require 'msf/core/exploit/cmdstager_tftp'
+
+# Protocol
+require 'msf/core/exploit/tcp'
+require 'msf/core/exploit/udp'
+require 'msf/core/exploit/ip'
+require 'msf/core/exploit/ipv6'
+require 'msf/core/exploit/dhcp'
+require 'msf/core/exploit/ntlm'
+require 'msf/core/exploit/smb'
+require 'msf/core/exploit/ftp'
+require 'msf/core/exploit/tftp'
+require 'msf/core/exploit/telnet'
+require 'msf/core/exploit/ftpserver'
+require 'msf/core/exploit/http/client'
+require 'msf/core/exploit/http/server'
+require 'msf/core/exploit/smtp'
+require 'msf/core/exploit/dcerpc'
+require 'msf/core/exploit/sunrpc'
+require 'msf/core/exploit/mssql'
+require 'msf/core/exploit/mssql_commands'
+require 'msf/core/exploit/mssql_sqli'
+require 'msf/core/exploit/mysql'
+require 'msf/core/exploit/snmp'
+require 'msf/core/exploit/arkeia'
+require 'msf/core/exploit/ndmp'
+require 'msf/core/exploit/imap'
+require 'msf/core/exploit/smtp_deliver'
+require 'msf/core/exploit/pop2'
+require 'msf/core/exploit/tns'
+require 'msf/core/exploit/db2'
+require 'msf/core/exploit/postgres'
+require 'msf/core/exploit/vim_soap'
+require 'msf/core/exploit/wdbrpc'
+require 'msf/core/exploit/wdbrpc_client'
+require 'msf/core/exploit/afp'
+
+
+# Telephony
+require 'msf/core/exploit/dialup'
+require 'msf/core/exploit/dect_coa'
+
+# Networks
+require 'msf/core/exploit/lorcon'
+require 'msf/core/exploit/lorcon2'
+require 'msf/core/exploit/capture'
+
+# FileFormat
+require 'msf/core/exploit/fileformat'
+require 'msf/core/exploit/pdf_parse'
+require 'msf/core/exploit/pdf'
+require 'msf/core/exploit/riff'
+
+# Oracle
+require 'msf/core/exploit/oracle'
+
+# tekniqz
+require 'msf/core/exploit/fmtstr'
+
+# Java
+require 'msf/core/exploit/java'
+
+# WBEM
+require 'msf/core/exploit/wbemexec'
+

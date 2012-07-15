@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+# -*- coding: binary -*-
+
+# $Id$
+# $Revision$
+
+msfbase = __FILE__
+while File.symlink?(msfbase)
+	msfbase = File.expand_path(File.readlink(msfbase), File.dirname(msfbase))
+end
+
+
+Dir.chdir(File.dirname(msfbase))
+
+$stderr.puts "[*]"
+$stderr.puts "[*] Attempting to update the Metasploit Framework..."
+$stderr.puts "[*]"
+$stderr.puts ""
+
+if not (Process.uid == 0 or File.stat(msfbase).owned?)
+	$stderr.puts "[-] ERROR: User running msfupdate does not own the metasploit install"
+	$stderr.puts "Please run msfupdate as the same user who installed metasploit."
+end
+
+wait = (ARGV.shift.to_s == "wait")
+
+have_configdir = false
+ARGV.each do |arg|
+	next unless arg =~ /--config-dir/
+	have_configdir = true
+end
+
+unless have_configdir
+	configdir = File.join(File.dirname(msfbase), "data", "svn")
+	# Spaces in the directory should be fine since this whole thing is passed
+	# as a single argument via the multi-arg syntax for system() below.
+	ARGV.push("--config-dir=#{configdir}")
+end
+
+
+res = system("svn", "cleanup")
+if res.nil?
+	$stderr.puts "[-] ERROR: Failed to run svn"
+	$stderr.puts ""
+	$stderr.puts "[-] If you used a binary installer, make sure you run the symlink in"
+	$stderr.puts "[-] /usr/local/bin instead of running this file directly (e.g.: ./msfupdate)"
+	$stderr.puts "[-] to ensure a proper environment."
+else
+	# Cleanup worked, go ahead and update
+	system("svn", "update", *ARGV)
+end
+
+if wait
+	$stderr.puts ""
+	$stderr.puts "[*] Please hit enter to exit"
+	$stderr.puts ""
+	$stdin.readline
+end
