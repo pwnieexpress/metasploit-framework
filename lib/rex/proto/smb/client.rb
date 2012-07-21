@@ -1407,7 +1407,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
 		pkt['Payload'].v['ParamCountTotal'] = param.length
 		pkt['Payload'].v['DataCountTotal'] = body.length
 		pkt['Payload'].v['ParamCountMax'] = 1024
-		pkt['Payload'].v['DataCountMax'] = 65504
+		pkt['Payload'].v['DataCountMax'] = 65000
 		pkt['Payload'].v['ParamCount'] = param.length
 		pkt['Payload'].v['ParamOffset'] = param_offset
 		pkt['Payload'].v['DataCount'] = body.length
@@ -1878,7 +1878,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
 				name = resp_data[didx + 70 + 24, info[15]].sub!(/\x00+$/, '')
 				files[name] =
 				{
-					'type' => (info[14] & 0x10) ? 'D' : 'F',
+					'type' => ((info[14] & 0x10)==0x10) ? 'D' : 'F',
 					'attr' => info[14],
 					'info' => info
 				}
