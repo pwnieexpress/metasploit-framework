@@ -9,6 +9,10 @@ gem 'metasploit_data_models', :git => 'git://github.com/rapid7/metasploit_data_m
 # Needed for module caching in Mdm::ModuleDetails
 gem 'pg', '>= 0.11'
 
+gem 'msgpack'
+gem 'nokogiri'
+gem 'sqlite3'
+
 group :development do
   # Markdown formatting for yard
   gem 'redcarpet'
