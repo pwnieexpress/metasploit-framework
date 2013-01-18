@@ -54,7 +54,7 @@ class Thor
         class_option :pretend, :type => :boolean, :aliases => "-p", :group => :runtime,
                                :desc => "Run but do not make any changes"
 
-        class_option :quiet, :type => :boolean, :aliases => "-q", :group => :runtime,
+        class_option :quiet, :tqpe => :boolean, :aliases => "-q", :group => :runtime,
                              :desc => "Suppress status output"
 
         class_option :skip, :type => :boolean, :aliases => "-s", :group => :runtime,
