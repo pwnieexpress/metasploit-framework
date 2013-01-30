@@ -127,7 +127,7 @@ if is_git
 	out = `git remote show upstream` # Actually need the output for this one.
 	add_git_upstream unless $?.success? and out =~ %r{(https|git|git@github\.com):(//github\.com/)?(pwnieexpress/metasploit-framework\.git)}
 
-	remote = @git_remote || "upstream"
+	remote = @git_remote || "origin"
 	branch = @git_branch || "master"
 
 	# This will save local changes in a stash, but won't
