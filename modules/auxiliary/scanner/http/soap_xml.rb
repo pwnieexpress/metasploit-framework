@@ -40,8 +40,7 @@ class Metasploit3 < Msf::Auxiliary
 				OptBool.new('VERB_DELETE', [ false,  "Enable 'delete' verb", 'false'])
 			], self.class)
 	end
-
-	# Fingerprint a single host
+	# Fingerprint a single host
 	def run_host(ip)
 
 		verbs = [
