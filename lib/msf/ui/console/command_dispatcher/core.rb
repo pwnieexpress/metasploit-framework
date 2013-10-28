@@ -989,7 +989,7 @@ class Core
   def cmd_load_help
     print_line "Usage: load <path> [var=val var=val ...]"
     print_line
-    print_line "Loads a plugin from the supplied path.  If path is not absolute, fist looks"
+    print_line "Loads a plugin from the supplied path.  If path is not absolute, first looks"
     print_line "in the user's plugin directory (#{Msf::Config.user_plugin_directory}) then"
     print_line "in the framework root plugin directory (#{Msf::Config.plugin_directory})."
     print_line "The optional var=val options are custom parameters that can be passed to plugins."
@@ -3081,14 +3081,14 @@ class Core
       'Columns' => columns
       )
     [
-      [ 'ConsoleLogging', framework.datastore['ConsoleLogging'] || '', 'Log all console input and output' ],
-      [ 'LogLevel', framework.datastore['LogLevel'] || '', 'Verbosity of logs (default 0, max 5)' ],
-      [ 'MinimumRank', framework.datastore['MinimumRank'] || '', 'The minimum rank of exploits that will run without explicit confirmation' ],
-      [ 'SessionLogging', framework.datastore['SessionLogging'] || '', 'Log all input and output for sessions' ],
-      [ 'TimestampOutput', framework.datastore['TimestampOutput'] || '', 'Prefix all console output with a timestamp' ],
-      [ 'Prompt', framework.datastore['Prompt'] || '', "The prompt string, defaults to \"#{Msf::Ui::Console::Driver::DefaultPrompt}\"" ],
-      [ 'PromptChar', framework.datastore['PromptChar'] || '', "The prompt character, defaults to \"#{Msf::Ui::Console::Driver::DefaultPromptChar}\"" ],
-      [ 'PromptTimeFormat', framework.datastore['PromptTimeFormat'] || '', 'A format for timestamp escapes in the prompt, see ruby\'s strftime docs' ],
+      [ 'ConsoleLogging', framework.datastore['ConsoleLogging'] || "false", 'Log all console input and output' ],
+      [ 'LogLevel', framework.datastore['LogLevel'] || "0", 'Verbosity of logs (default 0, max 5)' ],
+      [ 'MinimumRank', framework.datastore['MinimumRank'] || "0", 'The minimum rank of exploits that will run without explicit confirmation' ],
+      [ 'SessionLogging', framework.datastore['SessionLogging'] || "false", 'Log all input and output for sessions' ],
+      [ 'TimestampOutput', framework.datastore['TimestampOutput'] || "false", 'Prefix all console output with a timestamp' ],
+      [ 'Prompt', framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt.to_s.gsub(/%.../,"") , "The prompt string" ],
+      [ 'PromptChar', framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar.to_s.gsub(/%.../,""), "The prompt character" ],
+      [ 'PromptTimeFormat', framework.datastore['PromptTimeFormat'] || Time::DATE_FORMATS[:db].to_s, 'Format for timestamp escapes in prompts' ],
     ].each { |r| tbl << r }
 
     print(tbl.to_s)
